@@ -64,18 +64,29 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      final GoogleSignInAuthentication? googleAuth = await googleUser?.authentication;
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      if (await googleSignIn.isSignedIn()) {
+        await googleSignIn.signOut();
+      }
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        // User canceled the popup
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication? googleAuth = await googleUser.authentication;
 
       if (googleAuth != null && googleAuth.accessToken != null && googleAuth.idToken != null) {
         final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
+          accessToken: googleAuth.accessToken!,
+          idToken: googleAuth.idToken!,
         );
         await _auth.signInWithCredential(credential);
         _navigateToMain();
       } else {
-        // User canceled the Google Sign-In flow
+        _showError('Failed to retrieve Google authentication tokens.');
         setState(() => _isLoading = false);
       }
     } catch (e) {

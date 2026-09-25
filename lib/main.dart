@@ -9,7 +9,7 @@ import 'providers/ui_settings_provider.dart';
 import 'providers/seed_repository.dart';
 import 'providers/journal_provider.dart';
 import 'screens/auth_screen.dart';
-import 'screens/main_menu_screen.dart'; // Cleanly referenced, no duplicates here
+import 'screens/main_menu_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +17,8 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // App Check removed for now so local testing and auth flow run freely
 
   runApp(
     MultiProvider(

@@ -1,7 +1,4 @@
-// lib/services/api_config.dart
+// lib/api_config.dart (GITIGNORED)
 class ApiConfig {
-  static const String geminiApiKey = String.fromEnvironment(
-    'GEMINI_API_KEY',
-    defaultValue: 'AQ.Ab8RN6KGVfW1dcdWqX3-DIT1aMlHGU9KPcJAZqOT-acJUL9g2A', // Fallback for local testing so it never drops as null
-  );
+  static const String geminiApiKey = "AQ.Ab8RN6IPMXE6h5j-bPKA4hi5f1_gKy0YGaZ55ffWolCmWZ-_cg";
 }

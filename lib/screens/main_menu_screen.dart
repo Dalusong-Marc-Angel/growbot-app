@@ -6,7 +6,7 @@ import 'my_crops_screen.dart';
 import 'journal_screen.dart';
 import 'garden_beds_screen.dart';
 import 'ai_chat_screen.dart';
-import 'community_screen.dart'; // Added Community Screen Import
+import 'community_screen.dart';
 import '../widgets/app_drawer.dart';
 
 class MenuItemData {
@@ -65,14 +65,33 @@ class MainMenuScreen extends StatelessWidget {
       ),
       MenuItemData(
         title: 'Community',
-        subtitle: 'Connect with Growers', // Updated subtitle
+        subtitle: 'Connect with Growers',
         imageAsset: 'assets/images/community.png',
-        destinationScreen: const CommunityScreen(), // Linked properly here
+        destinationScreen: const CommunityScreen(),
       ),
     ];
 
-    final isWideScreen = MediaQuery.of(context).size.width >= 800;
+    final mediaQuery = MediaQuery.of(context);
+    final isWideScreen = mediaQuery.size.width >= 800;
     final crossAxisCount = isWideScreen ? 3 : 2;
+
+    // Dynamically calculate aspect ratio based on available screen height 
+    // so the 3 rows expand smoothly to fill the screen without dead bottom space.
+    final double appBarHeight = AppBar().preferredSize.height;
+    final double topPadding = mediaQuery.padding.top;
+    final double availableHeight = mediaQuery.size.height - appBarHeight - topPadding - 32; // 32 for padding
+    
+    // There are 3 rows on mobile (6 items / 2 columns = 3 rows)
+    final int rowCount = (menuItems.length / crossAxisCount).ceil();
+    final double totalMainAxisSpacing = 16.0 * (rowCount - 1);
+    final double rowHeight = (availableHeight - totalMainAxisSpacing) / rowCount;
+    
+    // Calculate width per item
+    final double totalCrossAxisSpacing = 16.0 * (crossAxisCount - 1);
+    final double availableWidth = mediaQuery.size.width - 32.0 - totalCrossAxisSpacing;
+    final double columnWidth = availableWidth / crossAxisCount;
+
+    final double calculatedAspectRatio = isWideScreen ? 1.1 : (columnWidth / rowHeight);
 
     return Scaffold(
       appBar: AppBar(
@@ -90,19 +109,19 @@ class MainMenuScreen extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: GridView.builder(
+          physics: const NeverScrollableScrollPhysics(), // Locks scrolling so it fits neatly as a single screen dashboard
           itemCount: menuItems.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            childAspectRatio: 1.1,
+            childAspectRatio: calculatedAspectRatio,
           ),
           itemBuilder: (context, index) {
             final item = menuItems[index];
             return InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: () {
-                // Direct navigation for all items now, including Community
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (context) => item.destinationScreen),
                 );

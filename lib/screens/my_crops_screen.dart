@@ -101,63 +101,6 @@ class _MyCropsScreenState extends State<MyCropsScreen> {
     );
   }
 
-  Future<void> _handleImageSource(ImageSource source) async {
-    XFile? pickedFile;
-    try {
-      pickedFile = await _imagePicker.pickImage(source: source, maxWidth: 1600, imageQuality: 85);
-    } catch (e) {
-      debugPrint('[ImagePicker] Failed to pick image: $e');
-      return;
-    }
-    if (pickedFile == null || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Image captured (seed matching is currently disabled).')),
-    );
-  }
-
-  void _showCropSourceModal({int? targetGridIndex}) {
-    final scaleFactor = context.read<UISettingsProvider>().scaleFactor;
-
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20 * scaleFactor)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.all(20 * scaleFactor),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                targetGridIndex != null ? 'Add Crop to Slot ${targetGridIndex + 1}' : 'Add Crop',
-                style: TextStyle(fontSize: 18 * scaleFactor, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 16 * scaleFactor),
-              ListTile(
-                leading: Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.primary),
-                title: const Text('Scan with Camera'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _handleImageSource(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.edit_note, color: Theme.of(context).colorScheme.secondary),
-                title: const Text('Add Manually from Database'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _openAddCropModal(targetGridIndex: targetGridIndex);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   Future<void> _deleteCrop(String cropId) async {
     if (_isLoggedIn) {
       await _cropService.deleteCrop(cropId);
@@ -444,16 +387,7 @@ class _MyCropsScreenState extends State<MyCropsScreen> {
                     );
                   },
                 ),
-          IconButton(
-            icon: const Icon(Icons.add_a_photo_outlined),
-            onPressed: () => _showCropSourceModal(),
-          ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAddCropModal(),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Crop'),
       ),
       body: _isLoggedIn
           ? StreamBuilder<List<UserCrop>>(
@@ -476,101 +410,122 @@ class _MyCropsScreenState extends State<MyCropsScreen> {
 
   Widget _buildGridContent(BuildContext context, List<UserCrop> crops, double scaleFactor) {
     const int totalSlots = 121; // 11x11 grid
+    const int crossAxisCount = 11;
+    const int rowCount = 11;
+    const double spacing = 4.0;
 
-    return InteractiveViewer(
-      boundaryMargin: const EdgeInsets.all(20),
-      minScale: 0.5,
-      maxScale: 4.0,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: GridView.builder(
-          itemCount: totalSlots,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 11,
-            crossAxisSpacing: 4,
-            mainAxisSpacing: 4,
-            childAspectRatio: 1.0,
-          ),
-          itemBuilder: (context, index) {
-            final UserCrop? crop = crops.where((c) => c.gridIndex == index).firstOrNull;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bottomBuffer = 32.0;
+        final availableWidth = constraints.maxWidth - 16.0;
+        final availableHeight = constraints.maxHeight - 16.0 - bottomBuffer;
 
-            if (crop == null) {
-              return InkWell(
-                onTap: () => _showCropSourceModal(targetGridIndex: index),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.add,
-                      size: 16 * scaleFactor,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                    ),
-                  ),
+        final totalCrossSpacing = spacing * (crossAxisCount - 1);
+        final totalMainSpacing = spacing * (rowCount - 1);
+
+        final itemWidth = (availableWidth - totalCrossSpacing) / crossAxisCount;
+        final itemHeight = (availableHeight - totalMainSpacing) / rowCount;
+
+        final calculatedAspectRatio = (itemWidth > 0 && itemHeight > 0) ? (itemWidth / itemHeight) : 1.0;
+
+        return Center(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 8.0 + bottomBuffer),
+            child: SizedBox(
+              width: availableWidth,
+              height: availableHeight > 0 ? availableHeight : null,
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: totalSlots,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: spacing,
+                  mainAxisSpacing: spacing,
+                  childAspectRatio: calculatedAspectRatio,
                 ),
-              );
-            }
+                itemBuilder: (context, index) {
+                  final UserCrop? crop = crops.where((c) => c.gridIndex == index).firstOrNull;
 
-            final matchingSeed = _findMatchingSeed(context, crop.name);
-            final placeholder = matchingSeed?.imagePlaceholder;
-            final bool isAsset = placeholder != null && (placeholder.startsWith('assets/') || placeholder.contains('.'));
-            final bool isEmoji = placeholder != null && !isAsset && placeholder.trim().isNotEmpty;
-
-            return InkWell(
-              onTap: () => _showCropDetailPopup(context, crop, crops, scaleFactor),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  image: isAsset
-                      ? DecorationImage(
-                          image: AssetImage(placeholder),
-                          fit: BoxFit.cover,
-                          colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.4), BlendMode.darken),
-                        )
-                      : null,
-                  color: !isAsset ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.6) : null,
-                  border: Border.all(
-                    color: crop.needsWatering ? Colors.amber : Theme.of(context).colorScheme.primary,
-                    width: crop.needsWatering ? 2 : 1,
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Center(
-                      child: isAsset
-                          ? null
-                          : (isEmoji
-                              ? Text(placeholder, style: TextStyle(fontSize: 20 * scaleFactor))
-                              : Icon(
-                                  crop.medium == PlantingMedium.flowerPot ? Icons.local_florist : Icons.grass,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 18 * scaleFactor,
-                                )),
-                    ),
-                    if (crop.needsWatering)
-                      Positioned(
-                        top: 2,
-                        right: 2,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(color: Colors.amber, shape: BoxShape.circle),
-                          child: const Icon(Icons.water_drop, size: 10, color: Colors.black),
+                  if (crop == null) {
+                    return InkWell(
+                      onTap: () => _openAddCropModal(targetGridIndex: index),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.add,
+                            size: 16 * scaleFactor,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                          ),
                         ),
                       ),
-                  ],
-                ),
+                    );
+                  }
+
+                  final matchingSeed = _findMatchingSeed(context, crop.name);
+                  final placeholder = matchingSeed?.imagePlaceholder;
+                  final bool isAsset = placeholder != null && (placeholder.startsWith('assets/') || placeholder.contains('.'));
+                  final bool isEmoji = placeholder != null && !isAsset && placeholder.trim().isNotEmpty;
+
+                  return InkWell(
+                    onTap: () => _showCropDetailPopup(context, crop, crops, scaleFactor),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        image: isAsset
+                            ? DecorationImage(
+                                image: AssetImage(placeholder),
+                                fit: BoxFit.cover,
+                                colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.4), BlendMode.darken),
+                              )
+                            : null,
+                        color: !isAsset ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.6) : null,
+                        border: Border.all(
+                          color: crop.needsWatering ? Colors.amber : Theme.of(context).colorScheme.primary,
+                          width: crop.needsWatering ? 2 : 1,
+                        ),
+                      ),
+                      child: Stack(
+                        children: [
+                          Center(
+                            child: isAsset
+                                ? null
+                                : (isEmoji
+                                    ? Text(placeholder, style: TextStyle(fontSize: 20 * scaleFactor))
+                                    : Icon(
+                                        crop.medium == PlantingMedium.flowerPot ? Icons.local_florist : Icons.grass,
+                                        color: Theme.of(context).colorScheme.primary,
+                                        size: 18 * scaleFactor,
+                                      )),
+                          ),
+                          if (crop.needsWatering)
+                            Positioned(
+                              top: 2,
+                              right: 2,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(color: Colors.amber, shape: BoxShape.circle),
+                                child: const Icon(Icons.water_drop, size: 10, color: Colors.black),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

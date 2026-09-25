@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:verdant_ai_0_0_1_alpha/services/api_config.dart';
 
 class AiChatScreen extends StatefulWidget {
   const AiChatScreen({super.key});
@@ -16,11 +17,6 @@ class _AiChatScreenState extends State<AiChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _picker = ImagePicker();
-
-  static const String _apiKey = String.fromEnvironment(
-    'GEMINI_API_KEY',
-    
-  );
 
   late final GenerativeModel _model;
   late final ChatSession _chatSession;
@@ -42,8 +38,8 @@ class _AiChatScreenState extends State<AiChatScreen> {
     super.initState();
 
     _model = GenerativeModel(
-      model: 'gemini-3.6-flash',
-      apiKey: _apiKey,
+      model: 'gemini-3.5-flash-lite',
+      apiKey: ApiConfig.geminiApiKey,
       systemInstruction: Content.system(
         'You are an expert agricultural and home gardening assistant tailored specifically for the Philippines.\n'
         'Guidelines:\n'
@@ -118,7 +114,32 @@ class _AiChatScreenState extends State<AiChatScreen> {
     });
 
     _scrollToBottom();
+    await _executeAIQuery(text, imageToUpload, _messages.length - 1);
+  }
 
+  Future<void> _regenerateResponse(int aiMessageIndex) async {
+    if (_isLoading || aiMessageIndex <= 0) return;
+
+    // Find the corresponding user prompt immediately preceding this AI message
+    final userMessageIndex = aiMessageIndex - 1;
+    if (userMessageIndex < 0 || _messages[userMessageIndex]['sender'] != 'user') {
+      return;
+    }
+
+    final userText = _messages[userMessageIndex]['text'] as String;
+    final userImagePath = _messages[userMessageIndex]['imagePath'] as String?;
+    XFile? imageFile = userImagePath != null ? XFile(userImagePath) : null;
+
+    setState(() {
+      _messages[aiMessageIndex]['text'] = '';
+      _isLoading = true;
+    });
+
+    _scrollToBottom();
+    await _executeAIQuery(userText, imageFile, aiMessageIndex);
+  }
+
+  Future<void> _executeAIQuery(String text, XFile? imageToUpload, int targetAiMessageIndex) async {
     try {
       final List<Part> parts = [];
 
@@ -140,7 +161,8 @@ class _AiChatScreenState extends State<AiChatScreen> {
         final chunkText = chunk.text;
         if (chunkText != null) {
           setState(() {
-            _messages.last['text'] = (_messages.last['text'] ?? '') + chunkText;
+            _messages[targetAiMessageIndex]['text'] = 
+                (_messages[targetAiMessageIndex]['text'] ?? '') + chunkText;
           });
           _scrollToBottom();
         }
@@ -151,7 +173,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
       debugPrint('$stackTrace');
       
       setState(() {
-        _messages.last['text'] = 'Error: $e';
+        _messages[targetAiMessageIndex]['text'] = 'Error: $e';
       });
     } finally {
       setState(() {
@@ -243,6 +265,41 @@ class _AiChatScreenState extends State<AiChatScreen> {
                                   : theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
+                        // Add Regenerate option on AI messages only when not currently loading
+                        if (!isUser) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              InkWell(
+                                onTap: _isLoading ? null : () => _regenerateResponse(index),
+                                borderRadius: BorderRadius.circular(4),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.replay,
+                                        size: 14,
+                                        color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Regenerate',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
