@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "509998612404",
+    "project_id": "farming-almanac",
+    "storage_bucket": "farming-almanac.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:509998612404:android:b10a3d0b128a9fe49b7ce1",
+        "android_client_info": {
+          "package_name": "com.dalusong.farmingalmanac"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "509998612404-0qij2btf43jo635j07bk3i7tii4s4bsv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dalusong.farmingalmanac",
+            "certificate_hash": "256695dab4b361f697249bbfbe359fa73cf7fc01"
+          }
+        },
+        {
+          "client_id": "509998612404-n2q15nn715tgn02aahfj2tgckgfeorlo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQ3BCh70YQyYsoVdoed1dTCLFv7XTpo0A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "509998612404-n2q15nn715tgn02aahfj2tgckgfeorlo.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
